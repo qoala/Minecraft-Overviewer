@@ -11,6 +11,44 @@ function prepareSignMarker(marker, item) {
 }
 
 
+function SurfaceCaveControl(controlDiv, tiledir, type, map) 
+{
+  // Set CSS styles for the DIV containing the control
+  // Setting padding to 5 px will offset the control
+  // from the edge of the map
+  controlDiv.style.padding = '5px';
+
+  // Set CSS for the control border
+  var controlUI = document.createElement('DIV');
+  controlUI.style.backgroundColor = 'white';
+  controlUI.style.borderStyle = 'solid';
+  controlUI.style.borderWidth = '2px';
+  controlUI.style.cursor = 'pointer';
+  controlUI.style.textAlign = 'center';
+  controlUI.title = 'Click to set to ' + type + ' mode';
+  controlDiv.appendChild(controlUI);
+
+  // Set CSS for the control interior
+  var controlText = document.createElement('DIV');
+  controlText.style.fontFamily = 'Arial,sans-serif';
+  controlText.style.fontSize = '12px';
+  controlText.style.paddingLeft = '4px';
+  controlText.style.paddingRight = '4px';
+  controlText.innerHTML = type;
+  controlUI.appendChild(controlText);
+
+  // Setup the click event listeners: simply set the map to Chicago
+  google.maps.event.addDomListener(controlUI, 'click', function() 
+  {
+      var zoom = map.getZoom();
+      var center = map.getCenter();
+      var signStates = map.signStates;
+      config['path'] = tiledir;
+      markersInit = false;
+      initialize(zoom, center, signStates);
+  });
+}
+
 function drawMapControls() {
 
     // compass rose, in the top right corner
@@ -21,9 +59,57 @@ function drawMapControls() {
     var compassImg = document.createElement('IMG');
     compassImg.src="compass.png";
     compassDiv.appendChild(compassImg);
-
+    
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(compassDiv);
-
+    
+    // Cave/Surface/Night controls
+    //
+    
+    if (typeof(tilePathsCount)=="undefined") {
+      var tilePathsCount = 0;
+      for (k in tilePaths) if (tilePaths.hasOwnProperty(k)) tilePathsCount++;
+    }
+    
+    //only draw controls if there are choices
+    if (tilePathsCount > 0) {
+      // Create the DIV to hold the cave/surface controls
+      var surfaceControlDiv = document.createElement('DIV');
+      var surfaceControl = {};
+      
+      // Create the appropriate controls
+      for (label in tilePaths) {
+	surfaceControl[label] = new SurfaceCaveControl(surfaceControlDiv, tilePaths[label], label, map);
+      }
+      
+      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
+    }
+    
+    /*
+    //check which paths are defined in config.js (don't draw controls for what we don't have)
+    var dayPathValid = (( typeof(config.dayPath)!="undefined" )&&(config.dayPath.length != 0) );
+    var nightPathValid = (( typeof(config.nightPath)!="undefined" )&&(config.nightPath.length != 0) )
+    var cavePathValid = (( typeof(config.cavePath)!="undefined" )&&(config.cavePath.length != 0) )
+    
+    //only draw controls if there are at least 2 choices
+    if ( (dayPathValid + nightPathValid + cavePathValid) > 1 ) {
+      // Create the DIV to hold the cave/surface controls
+      var surfaceControlDiv = document.createElement('DIV');
+      
+      if (dayPathValid) {
+	var surfaceControl = new SurfaceCaveControl(surfaceControlDiv, config.dayPath, 'Surface', map);
+      }
+      
+      if (nightPathValid) {
+	var nightControl = new SurfaceCaveControl(surfaceControlDiv, config.nightPath, 'Surface (night)', map);
+      }
+      
+      if (cavePathValid) {
+	var caveControl = new SurfaceCaveControl(surfaceControlDiv, config.cavePath, 'Cave', map);
+      }
+ 
+      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
+    }
+    */
 
     // signpost display control
     //
@@ -61,10 +147,16 @@ function drawMapControls() {
     for (label in signGroups) {
         var n = document.createElement("input");
         n.type="checkbox";
+        
+        n.checked = map.signStates[label];
+        if (n.checked) {
+	  jQuery.each(markerCollection[label], function(i,elem) {elem.setVisible(n.checked);});
+        }
 
         $(n).data("label",label);
         jQuery(n).click(function(e) {
                 var t = $(e.target);
+                map.signStates[t.data("label")] = e.target.checked;
                 jQuery.each(markerCollection[t.data("label")], function(i,elem) {elem.setVisible(e.target.checked);});
                 });
 
@@ -78,10 +170,16 @@ function drawMapControls() {
     // add "others" 
     var n = document.createElement("input");
     n.type="checkbox";
-
+    
+    n.checked = map.signStates["__others__"];
+    if (n.checked) {
+      jQuery.each(markerCollection["__others__"], function(i,elem) {elem.setVisible(n.checked);});
+    }
+    
     $(n).data("label","__others__");
     jQuery(n).click(function(e) {
             var t = $(e.target);
+            map.signStates[t.data("label")] = e.target.checked;
             jQuery.each(markerCollection[t.data("label")], function(i,elem) {elem.setVisible(e.target.checked);});
             });
 
@@ -159,6 +257,8 @@ function initMarkers() {
         var matched = false;
         for (label in signGroups) {
             var pattern = signGroups[label];
+	    
+	    markerCollection[label] = new Array();
 
             var r = item.msg.match(pattern);
             if (r) {
@@ -173,11 +273,7 @@ function initMarkers() {
                         icon: iconURL,
                         visible: false
                         });
-                if (markerCollection[label]) {
-                    markerCollection[label].push(marker);
-                } else {
-                    markerCollection[label] = [marker];
-                }
+                markerCollection[label].push(marker);
 
                 if (item.type == 'sign') {
                     prepareSignMarker(marker, item);
@@ -216,9 +312,27 @@ function initMarkers() {
 
 
 
-function initialize() {
-    var mapOptions = {zoom: config.defaultZoom,
-        center: new google.maps.LatLng(0.5, 0.5),
+function initialize(zoom, center, signStates) {
+    
+    if(!zoom) {
+      zoom = config.defaultZoom;
+    }
+    
+    if(!center) {
+      center = new google.maps.LatLng(0.5, 0.5);
+    }
+    
+    if(typeof(signStates) == "undefined") {
+      signStates = {};
+      for (label in signGroups) {
+        signStates[label] = false;
+      }
+      signStates["__others__"] = false;
+    }
+    
+    var mapOptions = {
+        zoom: zoom,
+        center: center,
         navigationControl: true,
         scaleControl: false,
         mapTypeControl: false,
@@ -226,6 +340,8 @@ function initialize() {
         mapTypeId: 'mcmap'
     };
     map = new google.maps.Map(document.getElementById("mcmap"), mapOptions);
+    
+    map.signStates = signStates;
 
     if(config.debug) {
         map.overlayMapTypes.insertAt(0, new CoordMapType(new google.maps.Size(config.tileSize, config.tileSize)));

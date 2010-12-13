@@ -1,6 +1,6 @@
 
   var config = {
-    path:        'tiles',
+    path:        'tiles',  //path to tiles displayed on load
     fileExt:     '{imgformat}',
     tileSize:     384,
     defaultZoom:  1,
@@ -18,6 +18,18 @@ var signGroups = {
 //    "Big Dig": /big\s*dig/i,
 //    "Warnings": /warning/i,
 };
+
+// define a list of render-label pairs.  Each label will appear
+//  as a separate button in the top-right for changing which render
+//  is currently viewed.
+// The right value is the path to the tiles for each render
+//
+// Leave this empty to disable the render-switching buttons
+var tilePaths = {
+  "Surface":		'tiles',
+  "Surface (Night)":	'night/tiles',
+//  "Caves":		'cave/tiles'
+}
 
 // Please leave the following variables here:
 var markerCollection = {}; // holds groups of markers
