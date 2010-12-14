@@ -46,10 +46,9 @@ function SurfaceCaveControl(controlDiv, tiledir, type, map)
   {
       var zoom = map.getZoom();
       var center = map.getCenter();
-      var signStates = map.signStates;
       config['path'] = tiledir;
       markersInit = false;
-      initialize(zoom, center, signStates);
+      initialize(zoom, center);
   });
 }
 
@@ -77,23 +76,19 @@ function drawMapControls() {
     
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(compassDiv);
     
+    if (tilePaths.length > 0) {
     // Cave/Surface/Night controls
     //
     
-    if (typeof(tilePathsCount)=="undefined") {
-      var tilePathsCount = 0;
-      for (k in tilePaths) if (tilePaths.hasOwnProperty(k)) tilePathsCount++;
-    }
-    
-    //only draw controls if there are choices
-    if (tilePathsCount > 0) {
       // Create the DIV to hold the cave/surface controls
       var surfaceControlDiv = document.createElement('DIV');
       var surfaceControl = {};
       
       // Create the appropriate controls
-      for (label in tilePaths) {
-	surfaceControl[label] = new SurfaceCaveControl(surfaceControlDiv, tilePaths[label], label, map);
+      for (idx in tilePaths) {
+	var label = tilePaths[idx].label;
+	var tiledir = tilePaths[idx].path;
+	surfaceControl[label] = new SurfaceCaveControl(surfaceControlDiv, tiledir, label, map);
       }
       
       map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);

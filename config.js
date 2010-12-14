@@ -34,11 +34,11 @@ var signGroups = [
 // The right value is the path to the tiles for each render
 //
 // Leave this empty to disable the render-switching buttons
-var tilePaths = {
-  "Surface":		'tiles',
-  "Surface (Night)":	'night/tiles',
-//  "Caves":		'cave/tiles'
-}
+var tilePaths = [
+   {label: "Surface", path: 'tiles'},
+   {label: "Surface (Night)", path: 'night/tiles'},
+//    {label: "Caves", path: 'cave/tiles'}
+]
 
 // Please leave the following variables here:
 var markerCollection = {}; // holds groups of markers
