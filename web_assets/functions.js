@@ -1,3 +1,4 @@
+var prevInfoWindow = null;
 
 function prepareSignMarker(marker, item) {
 
@@ -5,7 +6,10 @@ function prepareSignMarker(marker, item) {
     var infowindow = new google.maps.InfoWindow({content: c
             });
     google.maps.event.addListener(marker, 'click', function() {
+            if (prevInfoWindow)
+                prevInfoWindow.close()
             infowindow.open(map,marker);
+            prevInfoWindow = infowindow
             });
 
 }
@@ -51,6 +55,17 @@ function SurfaceCaveControl(controlDiv, tiledir, type, map)
 
 function drawMapControls() {
 
+    // viewstate link
+    var viewStateDiv = document.createElement('DIV');
+
+        //<div id="link" style="border:1px solid black;background-color:white;color:black;position:absolute;top:5px;right:5px"></div>
+
+    viewStateDiv.id="link";
+
+
+    map.controls[google.maps.ControlPosition.BOTTOM_RIGHT].push(viewStateDiv);
+
+
     // compass rose, in the top right corner
     var compassDiv = document.createElement('DIV');
 
@@ -83,34 +98,8 @@ function drawMapControls() {
       
       map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
     }
-    
-    /*
-    //check which paths are defined in config.js (don't draw controls for what we don't have)
-    var dayPathValid = (( typeof(config.dayPath)!="undefined" )&&(config.dayPath.length != 0) );
-    var nightPathValid = (( typeof(config.nightPath)!="undefined" )&&(config.nightPath.length != 0) )
-    var cavePathValid = (( typeof(config.cavePath)!="undefined" )&&(config.cavePath.length != 0) )
-    
-    //only draw controls if there are at least 2 choices
-    if ( (dayPathValid + nightPathValid + cavePathValid) > 1 ) {
-      // Create the DIV to hold the cave/surface controls
-      var surfaceControlDiv = document.createElement('DIV');
-      
-      if (dayPathValid) {
-	var surfaceControl = new SurfaceCaveControl(surfaceControlDiv, config.dayPath, 'Surface', map);
-      }
-      
-      if (nightPathValid) {
-	var nightControl = new SurfaceCaveControl(surfaceControlDiv, config.nightPath, 'Surface (night)', map);
-      }
-      
-      if (cavePathValid) {
-	var caveControl = new SurfaceCaveControl(surfaceControlDiv, config.cavePath, 'Cave', map);
-      }
- 
-      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
-    }
-    */
 
+    if (signGroups.length > 0) {
     // signpost display control
     //
 
@@ -144,49 +133,39 @@ function drawMapControls() {
 
 
 
-    for (label in signGroups) {
+    var hasSignGroup = false;
+    for (idx in signGroups) {
+        var item = signGroups[idx];
+        //console.log(item);
+        label = item.label;
+        hasSignGroup = true;
+        var d = document.createElement("div");
         var n = document.createElement("input");
         n.type="checkbox";
         
-        n.checked = map.signStates[label];
-        if (n.checked) {
-	  jQuery.each(markerCollection[label], function(i,elem) {elem.setVisible(n.checked);});
-        }
+	//Store a reference to the signGroups element, so that checkbox state can be maintained when render changed
+	n.signGroup = item;
 
         $(n).data("label",label);
         jQuery(n).click(function(e) {
                 var t = $(e.target);
-                map.signStates[t.data("label")] = e.target.checked;
+                e.target.signGroup.checked = e.target.checked;
                 jQuery.each(markerCollection[t.data("label")], function(i,elem) {elem.setVisible(e.target.checked);});
                 });
 
-        dropdownDiv.appendChild(n);
+        if (item.checked) {
+            n.checked = true;
+            jQuery.each(markerCollection[label], function(i,elem) {elem.setVisible(n.checked);});
+        }
+        dropdownDiv.appendChild(d);
+        d.appendChild(n)
         var textNode = document.createElement("text");
         textNode.innerHTML = label + "<br/>";
-        dropdownDiv.appendChild(textNode);
-
-    }
-
-    // add "others" 
-    var n = document.createElement("input");
-    n.type="checkbox";
-    
-    n.checked = map.signStates["__others__"];
-    if (n.checked) {
-      jQuery.each(markerCollection["__others__"], function(i,elem) {elem.setVisible(n.checked);});
+        d.appendChild(textNode);
     }
     
-    $(n).data("label","__others__");
-    jQuery(n).click(function(e) {
-            var t = $(e.target);
-            map.signStates[t.data("label")] = e.target.checked;
-            jQuery.each(markerCollection[t.data("label")], function(i,elem) {elem.setVisible(e.target.checked);});
-            });
+    }
 
-    dropdownDiv.appendChild(n);
-    var textNode = document.createElement("text");
-    textNode.innerHTML = "Others<br/>";
-    dropdownDiv.appendChild(textNode);
 }
 
 function initRegions() {
@@ -234,6 +213,17 @@ function initMarkers() {
     if (markersInit) { return; }
 
     markersInit = true;
+    
+    
+    for (idx in signGroups){
+      //initialize markerCollection with arrays for each label
+      markerCollection[signGroups[idx].label] = new Array();
+      
+      //Create .checked property on all signGroups (if not already present)
+      if (typeof(signGroups[idx].checked) == 'undefined'){
+	signGroups[idx].checked = false;
+      }
+    }
 
     for (i in markerData) {
         var item = markerData[i];
@@ -247,7 +237,7 @@ function initMarkers() {
             var converted = fromWorldToLatLng(item.x, item.y, item.z);
             var marker = new google.maps.Marker({position: converted,
                     map: map,
-                    title: item.msg, 
+                    title: jQuery.trim(item.msg), 
                     icon: iconURL
                     });
 
@@ -255,13 +245,12 @@ function initMarkers() {
         }
 
         var matched = false;
-        for (label in signGroups) {
-            var pattern = signGroups[label];
-	    
-	    markerCollection[label] = new Array();
+        for (idx in signGroups) {
+            var signGroup = signGroups[idx];
+            var testfunc = signGroup.match;
+            var label = signGroup.label;
 
-            var r = item.msg.match(pattern);
-            if (r) {
+            if (testfunc(item)) {
                 matched = true;
 
                 if (item.type == 'sign') { iconURL = 'signpost_icon.png';}
@@ -269,7 +258,7 @@ function initMarkers() {
                 var converted = fromWorldToLatLng(item.x, item.y, item.z);
                 var marker = new google.maps.Marker({position: converted,
                         map: map,
-                        title: item.msg, 
+                        title: jQuery.trim(item.msg), 
                         icon: iconURL,
                         visible: false
                         });
@@ -291,7 +280,7 @@ function initMarkers() {
             var converted = fromWorldToLatLng(item.x, item.y, item.z);
             var marker = new google.maps.Marker({position: converted,
                     map: map,
-                    title: item.msg, 
+                    title: jQuery.trim(item.msg), 
                     icon: iconURL,
                     visible: false
                     });
@@ -311,24 +300,40 @@ function initMarkers() {
 }
 
 
+function makeLink() {
+    var a=location.href.substring(0,location.href.lastIndexOf(location.search))
+        + "?lat=" + map.getCenter().lat().toFixed(6)
+        + "&lng=" + map.getCenter().lng().toFixed(6)
+        + "&zoom=" + map.getZoom();
+    document.getElementById("link").innerHTML = a;
+}
 
-function initialize(zoom, center, signStates) {
+function initialize(zoom, center) {
     
     if(!zoom) {
       zoom = config.defaultZoom;
     }
     
     if(!center) {
-      center = new google.maps.LatLng(0.5, 0.5);
+      var query = location.search.substring(1);
+
+      var lat = 0.5;
+      var lng = 0.5;
+      var pairs = query.split("&");
+      for (var i=0; i<pairs.length; i++) {
+        // break each pair at the first "=" to obtain the argname and value
+        var pos = pairs[i].indexOf("=");
+        var argname = pairs[i].substring(0,pos).toLowerCase();
+        var value = pairs[i].substring(pos+1).toLowerCase();
+
+        // process each possible argname
+        if (argname == "lat") {lat = parseFloat(value);}
+        if (argname == "lng") {lng = parseFloat(value);}
+        if (argname == "zoom") {zoom = parseInt(value);}
+      }
+      center = new google.maps.LatLng(lat, lng);
     }
     
-    if(typeof(signStates) == "undefined") {
-      signStates = {};
-      for (label in signGroups) {
-        signStates[label] = false;
-      }
-      signStates["__others__"] = false;
-    }
     
     var mapOptions = {
         zoom: zoom,
@@ -340,21 +345,19 @@ function initialize(zoom, center, signStates) {
         mapTypeId: 'mcmap'
     };
     map = new google.maps.Map(document.getElementById("mcmap"), mapOptions);
-    
-    map.signStates = signStates;
 
     if(config.debug) {
         map.overlayMapTypes.insertAt(0, new CoordMapType(new google.maps.Size(config.tileSize, config.tileSize)));
 
         google.maps.event.addListener(map, 'click', function(event) {
-                console.log("latLng; " + event.latLng.lat() + ", " + event.latLng.lng());
+                //console.log("latLng; " + event.latLng.lat() + ", " + event.latLng.lng());
 
                 var pnt = map.getProjection().fromLatLngToPoint(event.latLng);
-                console.log("point: " + pnt);
+                //console.log("point: " + pnt);
 
                 var pxx = pnt.x * config.tileSize * Math.pow(2, config.maxZoom);
                 var pxy = pnt.y * config.tileSize * Math.pow(2, config.maxZoom);
-                console.log("pixel: " + pxx + ", " + pxy);
+                //console.log("pixel: " + pxx + ", " + pxy);
                 });
     }
 
@@ -370,7 +373,15 @@ function initialize(zoom, center, signStates) {
     initRegions();
     drawMapControls();
 
+    //makeLink();
 
+    // Make the link again whenever the map changes
+    google.maps.event.addListener(map, 'zoom_changed', function() {
+        makeLink();
+    });
+    google.maps.event.addListener(map, 'center_changed', function() {
+        makeLink();
+    });
 
 }
 
