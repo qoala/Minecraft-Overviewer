@@ -47,3 +47,4 @@ var map;
 
 var markersInit = false;
 var regionsInit = false;
+var mapTypesInit = false;

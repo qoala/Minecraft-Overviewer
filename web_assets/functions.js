@@ -294,6 +294,26 @@ function initMarkers() {
     }
 }
 
+var MCMapType;
+function initMapTypes(){
+  if (mapTypesInit) { return; }
+
+  mapTypesInit = true;
+  
+  var MCMapOptions = {
+    getTileUrl: getTileUrlFunction(config.path),
+    tileSize: new google.maps.Size(config.tileSize, config.tileSize),
+    maxZoom:  config.maxZoom,
+    minZoom:  0,
+    isPng:    !(config.fileExt.match(/^png$/i) == null)
+  };
+  
+  MCMapType = new google.maps.ImageMapType(MCMapOptions);
+  MCMapType.name = "MC Map";
+  MCMapType.alt = "Minecraft Map";
+  MCMapType.projection = new MCMapProjection();
+  
+}
 
 function makeLink() {
     var a=location.href.substring(0,location.href.lastIndexOf(location.search))
@@ -303,19 +323,16 @@ function makeLink() {
     document.getElementById("link").innerHTML = a;
 }
 
-function initialize(zoom, center) {
-    
-    if(!zoom) {
-      zoom = config.defaultZoom;
-    }
-    
-    if(!center) {
-      var query = location.search.substring(1);
+function initialize() {
 
-      var lat = 0.5;
-      var lng = 0.5;
-      var pairs = query.split("&");
-      for (var i=0; i<pairs.length; i++) {
+    // Read in URL parameters
+    var query = location.search.substring(1);
+
+    var lat = 0.5;
+    var lng = 0.5;
+    var zoom = config.defaultZoom;
+    var pairs = query.split("&");
+    for (var i=0; i<pairs.length; i++) {
         // break each pair at the first "=" to obtain the argname and value
         var pos = pairs[i].indexOf("=");
         var argname = pairs[i].substring(0,pos).toLowerCase();
@@ -325,14 +342,15 @@ function initialize(zoom, center) {
         if (argname == "lat") {lat = parseFloat(value);}
         if (argname == "lng") {lng = parseFloat(value);}
         if (argname == "zoom") {zoom = parseInt(value);}
-      }
-      center = new google.maps.LatLng(lat, lng);
     }
     
+    // Create the map type(s)
+    initMapTypes();
     
+    // Create the map object
     var mapOptions = {
         zoom: zoom,
-        center: center,
+        center: new google.maps.LatLng(lat, lng),
         navigationControl: true,
         scaleControl: false,
         mapTypeControl: false,
@@ -439,10 +457,11 @@ function initialize(zoom, center) {
     
     return new google.maps.LatLng(lat, lng);
   }
-  
-  var MCMapOptions = {
-    getTileUrl: function(tile, zoom) {
-      var url = config.path;
+
+// Helper function to produce the getTileUrl method for our ImageMapTypes
+  function getTileUrlFunction(tilePath){
+    var getTileUrl = function(tile, zoom) {
+      var url = tilePath;
       if(tile.x < 0 || tile.x >= Math.pow(2, zoom) || tile.y < 0 || tile.y >= Math.pow(2, zoom)) {
         url += '/blank';
       } else if(zoom == 0) {
@@ -460,18 +479,11 @@ function initialize(zoom, center) {
         url += '?c=' + Math.floor(d.getTime() / (1000 * 60 * config.cacheMinutes));
       }
       return(url);
-    },
-    tileSize: new google.maps.Size(config.tileSize, config.tileSize),
-    maxZoom:  config.maxZoom,
-    minZoom:  0,
-    isPng:    !(config.fileExt.match(/^png$/i) == null)
-  };
-  
-  var MCMapType = new google.maps.ImageMapType(MCMapOptions);
-  MCMapType.name = "MC Map";
-  MCMapType.alt = "Minecraft Map";
-  MCMapType.projection = new MCMapProjection();
-  
+    };
+    return getTileUrl;
+  }
+
+// A map overlay for debugging
   function CoordMapType() {
   }
   
