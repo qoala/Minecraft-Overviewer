@@ -15,8 +15,7 @@ function prepareSignMarker(marker, item) {
 }
 
 
-function SurfaceCaveControl(controlDiv, tiledir, type, map) 
-{
+function mcMapTypeControl(controlDiv, tiledir, type, map) {
   // Set CSS styles for the DIV containing the control
   // Setting padding to 5 px will offset the control
   // from the edge of the map
@@ -76,19 +75,19 @@ function drawMapControls() {
     
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(compassDiv);
     
-    if (tilePaths.length > 0) {
-    // Cave/Surface/Night controls
-    //
+    if (false && mapTypeOptions.length > 1) {
+    // Custom Map Type controls
+    // (remove the false above to 
     
       // Create the DIV to hold the cave/surface controls
-      var surfaceControlDiv = document.createElement('DIV');
-      var surfaceControl = {};
+      var mapTypeControlDiv = document.createElement('DIV');
+      var mapTypeControl = {};
       
       // Create the appropriate controls
       for (idx in tilePaths) {
 	var label = tilePaths[idx].label;
 	var tiledir = tilePaths[idx].path;
-	surfaceControl[label] = new SurfaceCaveControl(surfaceControlDiv, tiledir, label, map);
+	surfaceControl[label] = new mcMapTypeControl(surfaceControlDiv, tiledir, label, map);
       }
       
       map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
@@ -294,25 +293,50 @@ function initMarkers() {
     }
 }
 
-var MCMapType;
+var MCMapTypes = {};
+var MCMapTypeIds = []; //list of map types to display in MapTypeControl
 function initMapTypes(){
   if (mapTypesInit) { return; }
 
   mapTypesInit = true;
   
-  var MCMapOptions = {
-    getTileUrl: getTileUrlFunction(config.path),
+  // options for all map types to be generated
+  // may be overridden if provided in an entry of mapTypeOptions
+  var MCMapTemplate = {
     tileSize: new google.maps.Size(config.tileSize, config.tileSize),
     maxZoom:  config.maxZoom,
     minZoom:  0,
-    isPng:    !(config.fileExt.match(/^png$/i) == null)
+    isPng:    !(config.fileExt.match(/^png$/i) == null),
+    unlisted: false //not part of ImageMapTypeOptions, prevents inserting into 
   };
   
-  MCMapType = new google.maps.ImageMapType(MCMapOptions);
-  MCMapType.name = "MC Map";
-  MCMapType.alt = "Minecraft Map";
-  MCMapType.projection = new MCMapProjection();
+  var projection = new MCMapProjection();
   
+  //Generate the map types defined by mapTypeOptions
+  for (idx in mapTypeOptions) {
+    var mapOptions = mapTypeOptions[idx];
+    
+    //Add in the template parameters if not already defined
+    for (parameter in MCMapTemplate) {
+      if (typeof(mapOptions[parameter]) == 'undefined') {
+	mapOptions[parameter] = MCMapTemplate[parameter];
+      }
+    }
+    
+    //Create the getTileUrl() method from the tile path
+    mapOptions.getTileUrl = getTileUrlFunction(mapOptions.path);
+    
+    mapOptions.id = '__mcmap' + idx + '__';
+    
+    var mapType = new google.maps.ImageMapType(mapOptions);
+    mapType.projection = projection;
+    
+    if (!mapOptions.unlisted) {
+      MCMapTypeIds.push(mapOptions.id);
+    }
+    
+    MCMapTypes[mapOptions.id] = mapType;
+  }
 }
 
 function makeLink() {
@@ -353,7 +377,8 @@ function initialize() {
         center: new google.maps.LatLng(lat, lng),
         navigationControl: true,
         scaleControl: false,
-        mapTypeControl: false,
+        mapTypeControl: mapTypeOptions.length > 1, //Set to false if using mcMapTypeControl for custom MapType switching
+        mapTypeControlOptions: { mapTypeIds: MCMapTypeIds },
         streetViewControl: false,
         mapTypeId: 'mcmap'
     };
@@ -374,11 +399,13 @@ function initialize() {
                 });
     }
 
-    // Now attach the coordinate map type to the map's registry
-    map.mapTypes.set('mcmap', MCMapType);
+    // Now attach the map types to the map's registry
+    for (idx in MCMapTypes) {
+      map.mapTypes.set(idx, MCMapTypes[idx]);
+    }
 
-    // We can now set the map to use the 'coordinate' map type
-    map.setMapTypeId('mcmap');
+    // We can now set the map to use the appropriate map type
+    map.setMapTypeId(mapTypeOptions[config.defaultMapType].id);
 
 
     // initialize the markers and regions

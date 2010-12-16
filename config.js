@@ -1,6 +1,7 @@
 
   var config = {
-    path:        'tiles',  //path to tiles displayed on load
+    //path:        'tiles',  //path to tiles displayed on load.  Unused if mapTypeOptions provided below
+    defaultMapType: 0, //index of the map type (as defined in mapTypeOptions below) to load by default
     fileExt:     '{imgformat}',
     tileSize:     384,
     defaultZoom:  1,
@@ -28,16 +29,27 @@ var signGroups = [
     {label: "All", match: function(s) {return true}}
 ];
 
-// define a list of render-label pairs.  Each label will appear
-//  as a separate button in the top-right for changing which render
-//  is currently viewed.
-// The right value is the path to the tiles for each render
-//
-// Leave this empty to disable the render-switching buttons
-var tilePaths = [
-   {label: "Surface", path: 'tiles'},
-   {label: "Surface (Night)", path: 'night/tiles'},
-//    {label: "Caves", path: 'cave/tiles'}
+/* mapTypeOptions -- A list of map types to create.  These are generally separate renders of the
+ * world to switch between.  Each entry is used to provide an ImageMapTypeOptions as defined
+ * in the Google Maps API. See below for some examples.
+ *
+ * Required:
+ *     name : string.  Displayed in the MapControl.
+ *     path : string.  Path to the tiles directory
+ *
+ * Optional:
+ *     alt : string.  Displayed when moused over in the MapControl.
+ *     unlisted: boolean.  Set to true to prevent listing this MapType in the MapTypeControl.  Useful for overlays.
+ *
+ *     Any other parameters as defined in ImageMapTypeOptions.  However, the following parameters
+ *     are added during initialization and are unnecessary here:
+ *         getTileUrl(), isPng(), maxZoom, minZoom, tileSize
+ *
+ */
+var mapTypeOptions = [
+   {name: "Day", path: 'tiles', alt: "Surface at full lighting"},
+   {name: "Night", path: 'night/tiles', alt: "Surface at night"},
+//   {name: "Caves", path: 'cave/tiles', alt: "Cave-mode view"}
 ]
 
 // Please leave the following variables here:
