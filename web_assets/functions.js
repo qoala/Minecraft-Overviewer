@@ -15,7 +15,9 @@ function prepareSignMarker(marker, item) {
 }
 
 
-function mcMapTypeControl(controlDiv, tiledir, type, map) {
+function mcMapTypeControl(controlDiv, mcMapId, map) {
+  var mapType = map.mapTypes.get(mcMapId);
+  
   // Set CSS styles for the DIV containing the control
   // Setting padding to 5 px will offset the control
   // from the edge of the map
@@ -28,7 +30,12 @@ function mcMapTypeControl(controlDiv, tiledir, type, map) {
   controlUI.style.borderWidth = '2px';
   controlUI.style.cursor = 'pointer';
   controlUI.style.textAlign = 'center';
-  controlUI.title = 'Click to set to ' + type + ' mode';
+  if (typeof(mapType.alt) == 'undefined') {
+    controlUI.title = 'Click to set to ' + mapType.name + ' mode';
+  }
+  else {
+    controlUI.title = mapType.alt;
+  }
   controlDiv.appendChild(controlUI);
 
   // Set CSS for the control interior
@@ -37,17 +44,15 @@ function mcMapTypeControl(controlDiv, tiledir, type, map) {
   controlText.style.fontSize = '12px';
   controlText.style.paddingLeft = '4px';
   controlText.style.paddingRight = '4px';
-  controlText.innerHTML = type;
+  controlText.innerHTML = mapType.name;
   controlUI.appendChild(controlText);
 
-  // Setup the click event listeners: simply set the map to Chicago
-  google.maps.event.addDomListener(controlUI, 'click', function() 
-  {
-      var zoom = map.getZoom();
-      var center = map.getCenter();
-      config['path'] = tiledir;
-      markersInit = false;
-      initialize(zoom, center);
+  // Setup the click event listeners: simply set the map to the new type
+  google.maps.event.addDomListener(controlUI, 'click', function() {
+    //possibly set or remove overlays by adding/removing elements of map.overlayMapTypes
+    
+    //Set the new map type
+    map.setMapTypeId(mcMapId);
   });
 }
 
@@ -73,24 +78,24 @@ function drawMapControls() {
     compassImg.src="compass.png";
     compassDiv.appendChild(compassImg);
     
+    compassDiv.index = 0; //Force the compass to the corner position
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(compassDiv);
     
-    if (false && mapTypeOptions.length > 1) {
-    // Custom Map Type controls
-    // (remove the false above to 
+    if (config.customMapControl && mapTypeOptions.length > 1) {
+      // Custom Map Type controls
+      //  If you don't like the standard controls, or want to add in overlay selections
     
       // Create the DIV to hold the cave/surface controls
       var mapTypeControlDiv = document.createElement('DIV');
       var mapTypeControl = {};
       
       // Create the appropriate controls
-      for (idx in tilePaths) {
-	var label = tilePaths[idx].label;
-	var tiledir = tilePaths[idx].path;
-	surfaceControl[label] = new mcMapTypeControl(surfaceControlDiv, tiledir, label, map);
+      for (idx in MCMapTypeIds) {
+	var mcId = MCMapTypeIds[idx];
+	mapTypeControl[mcId] = new mcMapTypeControl(mapTypeControlDiv, mcId, map);
       }
       
-      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(surfaceControlDiv);
+      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(mapTypeControlDiv);
     }
 
     if (signGroups.length > 0) {
@@ -377,7 +382,7 @@ function initialize() {
         center: new google.maps.LatLng(lat, lng),
         navigationControl: true,
         scaleControl: false,
-        mapTypeControl: mapTypeOptions.length > 1, //Set to false if using mcMapTypeControl for custom MapType switching
+        mapTypeControl: (!config.customMapControl) && mapTypeOptions.length > 1,
         mapTypeControlOptions: { mapTypeIds: MCMapTypeIds },
         streetViewControl: false,
         mapTypeId: 'mcmap'

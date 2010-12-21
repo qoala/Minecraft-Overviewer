@@ -1,12 +1,13 @@
 
   var config = {
     //path:        'tiles',  //path to tiles displayed on load.  Unused if mapTypeOptions provided below
-    defaultMapType: 0, //index of the map type (as defined in mapTypeOptions below) to load by default
+    defaultMapType:   0, //index of the map type (as defined in mapTypeOptions below) to load by default
     fileExt:     '{imgformat}',
     tileSize:     384,
     defaultZoom:  1,
     maxZoom:      {maxzoom},
     cacheMinutes: 0, // Change this to have browsers automatically request new images every x minutes
+    customMapControl: false,
     debug:        false
   };
 
@@ -32,6 +33,7 @@ var signGroups = [
 /* mapTypeOptions -- A list of map types to create.  These are generally separate renders of the
  * world to switch between.  Each entry is used to provide an ImageMapTypeOptions as defined
  * in the Google Maps API. See below for some examples.
+ * Note that the controls won't appear if only one map type is presented here.
  *
  * Required:
  *     name : string.  Displayed in the MapControl.
@@ -48,8 +50,8 @@ var signGroups = [
  */
 var mapTypeOptions = [
    {name: "Day", path: 'tiles', alt: "Surface at full lighting"},
-   {name: "Night", path: 'night/tiles', alt: "Surface at night"},
-//   {name: "Caves", path: 'cave/tiles', alt: "Cave-mode view"}
+//   {name: "Night", path: 'night/tiles', alt: "Surface at night"},
+//   {name: "Caves", path: 'cave/tiles'}
 ]
 
 // Please leave the following variables here:
